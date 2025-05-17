@@ -3,11 +3,9 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { ErrorMiddleware } from "./middleware/error";
 import dotenv from "dotenv";
-import swaggerUi from "swagger-ui-express";
-const swaggerDocument = require("./swagger-output.json");
-// import userRouter from "./routes/user.route";
-// import authRouter from "./routes/auth.route";
-// import taskRouter from "./routes/task.route";
+import userRouter from "./routes/user.route";
+import authRouter from "./routes/auth.route";
+import resumeRouter from "./routes/resume.route";
 // import reportRouter from "./routes/report.route";
 
 export const app = express();
@@ -31,13 +29,8 @@ app.use(
   })
 );
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-app.use("/docs.json", (req, res) => {
-  res.json(swaggerDocument);
-});
-
 //routes
-// app.use("/api/v1", authRouter, userRouter, taskRouter, reportRouter);
+app.use("/api/v1", authRouter, userRouter, resumeRouter);
 
 //testing route
 app.get("/test", (req: Request, res: Response, next: NextFunction) => {
