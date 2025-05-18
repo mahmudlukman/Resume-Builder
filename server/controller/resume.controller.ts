@@ -12,7 +12,7 @@ interface ResumeRequestBody {
 }
 
 // @desc    Create a new resume
-// @route   POST /api/resumes
+// @route   POST /api/v1/resumes
 // @access  Private
 export const createResume = catchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -97,7 +97,9 @@ export const createResume = catchAsyncError(
             defaultResumeData.profileInfo.profilePreviewUrl = result.secure_url;
           }
         } catch (uploadError: any) {
-          return next(new ErrorHandler(`Image upload failed: ${uploadError.message}`, 400));
+          return next(
+            new ErrorHandler(`Image upload failed: ${uploadError.message}`, 400)
+          );
         }
       }
 
@@ -108,10 +110,10 @@ export const createResume = catchAsyncError(
         ...defaultResumeData,
       });
 
-      res.status(201).json({ 
-        success: true, 
+      res.status(201).json({
+        success: true,
         newResume,
-        message: "Resume created successfully"
+        message: "Resume created successfully",
       });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
@@ -120,7 +122,7 @@ export const createResume = catchAsyncError(
 );
 
 // @desc    Update resume profile image
-// @route   PUT /api/resumes/:id/profile-image
+// @route   PUT /api/v1/update-resume-image/:id
 // @access  Private
 export const updateResumeProfileImage = catchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -130,13 +132,15 @@ export const updateResumeProfileImage = catchAsyncError(
 
       // Find resume and verify ownership
       const resume = await Resume.findById(id);
-      
+
       if (!resume) {
         return next(new ErrorHandler("Resume not found", 404));
       }
-      
+
       if (resume.userId.toString() !== req.user._id.toString()) {
-        return next(new ErrorHandler("You are not authorized to update this resume", 403));
+        return next(
+          new ErrorHandler("You are not authorized to update this resume", 403)
+        );
       }
 
       // Handle image update
@@ -144,12 +148,14 @@ export const updateResumeProfileImage = catchAsyncError(
         // If there's an existing image, delete it from cloudinary
         if (resume.profileInfo?.profilePreviewUrl) {
           const publicId = resume.profileInfo.profilePreviewUrl
-            .split('/')
+            .split("/")
             .pop()
-            ?.split('.')[0];
-            
+            ?.split(".")[0];
+
           if (publicId) {
-            await cloudinary.v2.uploader.destroy(`resume_profile_images/${publicId}`);
+            await cloudinary.v2.uploader.destroy(
+              `resume_profile_images/${publicId}`
+            );
           }
         }
 
@@ -165,17 +171,155 @@ export const updateResumeProfileImage = catchAsyncError(
           resume.profileInfo = {};
         }
         resume.profileInfo.profilePreviewUrl = result.secure_url;
-        
+
         await resume.save();
-        
+
         return res.status(200).json({
           success: true,
           profileImageUrl: result.secure_url,
-          message: "Profile image updated successfully"
+          message: "Profile image updated successfully",
         });
       } else {
         return next(new ErrorHandler("No image provided", 400));
       }
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+// @desc    Get all resumes for logged-in user
+// @route   GET /api/v1/resumes
+// @access  Private
+export const getUserResumes = catchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const resumes = await Resume.find({ userId: req.user._id }).sort({
+        updatedAt: -1,
+      });
+      res.status(200).json({
+        success: true,
+        resumes,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+// @desc    Get single resume by ID
+// @route   GET /api/v1/resume/:id
+// @access  Private
+export const getResumeById = catchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const resume = await Resume.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+      });
+
+      if (!resume) {
+        return res.status(404).json({ message: "Resume not found" });
+      }
+
+      res.status(200).json({
+        success: true,
+        resume,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+// @desc    Update a resume
+// @route   PUT /api/v1/update-resume/:id
+// @access  Private
+export const updateResume = catchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const resume = await Resume.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+      });
+
+      if (!resume) {
+        return res
+          .status(404)
+          .json({ message: "Resume not found or unauthorized" });
+      }
+
+      // Merge updates from req.body into existing resume
+      Object.assign(resume, req.body);
+
+      // Save updated resume
+      const savedResume = await resume.save();
+
+      res.status(200).json({
+        success: true,
+        savedResume,
+      });
+    } catch (error: any) {
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
+
+// @desc    Delete a resume
+// @route   DELETE /api/v1/resume/:id
+// @access  Private
+export const deleteResume = catchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Find the resume by ID and user ID to ensure authorization
+      const resume = await Resume.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+      });
+
+      if (!resume) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: "Resume not found or unauthorized",
+          });
+      }
+
+      // Extract the profile image URL if it exists
+      const profileImageUrl = resume.profileInfo?.profilePreviewUrl;
+
+      // Delete the resume from the database
+      await Resume.findByIdAndDelete(req.params.id);
+
+      // If a profile image exists, delete it from Cloudinary
+      if (profileImageUrl && profileImageUrl.includes("cloudinary")) {
+        try {
+          // Extract the public_id from the Cloudinary URL
+          // Cloudinary URLs typically have format: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder_name/image_id
+          const splitUrl = profileImageUrl.split("/");
+          const publicIdWithExtension = splitUrl[splitUrl.length - 1];
+          const publicIdParts = publicIdWithExtension.split(".");
+          const folderName = splitUrl[splitUrl.length - 2];
+
+          // Combine folder name and file name to get the complete public_id
+          const publicId = `${folderName}/${publicIdParts[0]}`;
+
+          // Delete the image from Cloudinary
+          await cloudinary.v2.uploader.destroy(publicId);
+        } catch (cloudinaryError: any) {
+          // Log the error but don't stop the process
+          console.error(
+            "Error deleting image from Cloudinary:",
+            cloudinaryError
+          );
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Resume deleted successfully",
+      });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
