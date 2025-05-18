@@ -1,9 +1,5 @@
+import type { Skill } from "../../@types";
 import Progress from "../Progress";
-
-interface Skill {
-  name: string;
-  progress: number;
-}
 
 interface SkillInfoProps {
   skill: string;
@@ -32,8 +28,8 @@ const SkillSection = ({ skills, accentColor, bgColor }: { skills: Skill[]; accen
       {skills?.map((skill, index) => (
         <SkillInfo
           key={`skill_${index}`}
-          skill={skill.name}
-          progress={skill.progress}
+          skill={skill.name ?? ""}
+          progress={skill.progress ?? 0}
           accentColor={accentColor}
           bgColor={bgColor}
         />

@@ -1,3 +1,4 @@
+import type { Language } from "../../@types";
 import Progress from "../Progress";
 
 interface LanguageInfoProps {
@@ -7,7 +8,12 @@ interface LanguageInfoProps {
   bgColor: string;
 }
 
-const LanguageInfo = ({ language, progress, accentColor, bgColor }: LanguageInfoProps) => {
+const LanguageInfo = ({
+  language,
+  progress,
+  accentColor,
+  bgColor,
+}: LanguageInfoProps) => {
   return (
     <div className="flex items-center justify-between">
       <p className={`text-[12px] font-semibold text-gray-900`}>{language}</p>
@@ -22,29 +28,30 @@ const LanguageInfo = ({ language, progress, accentColor, bgColor }: LanguageInfo
   );
 };
 
-interface Language {
-  name: string;
-  progress: number;
-}
-
 interface LanguageSectionProps {
   languages: Language[];
   accentColor: string;
   bgColor: string;
 }
 
-const LanguageSection = ({ languages, accentColor, bgColor }: LanguageSectionProps) => {
-  return <div className="flex flex-col gap-2">
+const LanguageSection = ({
+  languages,
+  accentColor,
+  bgColor,
+}: LanguageSectionProps) => {
+  return (
+    <div className="flex flex-col gap-2">
       {languages?.map((language, index) => (
         <LanguageInfo
           key={`language_${index}`}
-          language={language.name}
-          progress={language.progress}
+          language={language.name ?? ""}
+          progress={language.progress ?? 0}
           accentColor={accentColor}
           bgColor={bgColor}
         />
       ))}
     </div>
+  );
 };
 
 export default LanguageSection;
