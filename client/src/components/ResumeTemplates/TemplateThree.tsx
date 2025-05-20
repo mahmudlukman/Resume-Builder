@@ -29,7 +29,7 @@ const Title = ({ text, color }: TitleProps) => {
   return (
     <div className="relative w-fit mb-2.5">
       <span
-        className="absolute bottom-0 left-0 w-full h-2"
+        className="absolute bottom-0 left-0 w-full h-0.5"
         style={{ backgroundColor: color }}
       ></span>
       <h2 className={`relative text-sm font-bold`}>{text}</h2>

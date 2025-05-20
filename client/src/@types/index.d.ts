@@ -22,6 +22,7 @@ interface ProfileInfo {
   fullName?: string;
   designation?: string;
   summary?: string;
+  profileImg?: string | null | undefined;
 }
 
 interface ContactInfo {
@@ -73,8 +74,9 @@ interface Language {
 
 // Main Resume interface
 interface ResumeData {
-  userId: mongoose.Types.ObjectId;
+  _id: string;
   title: string;
+  imgUrl?: string;
   thumbnailLink?: string;
   template?: Template;
   profileInfo?: ProfileInfo;

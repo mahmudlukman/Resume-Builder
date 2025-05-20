@@ -1,9 +1,11 @@
 interface RatingInputProps {
-    value?: number;
-    total?: number;
-    onChange?: (value: number) => void;
-    color?: string;
-    bgColor?: string;
+  value?: number;
+  total?: number;
+  activeColor: string;
+  inactiveColor: string;
+  onChange?: (value: number) => void;
+  color?: string;
+  bgColor?: string;
 }
 
 const RatingInput = ({
@@ -16,17 +18,18 @@ const RatingInput = ({
   // Convert 0–100 to 0–5 scale
   const displayValue = Math.round((value / 100) * total);
 
-interface HandleClickFn {
+  interface HandleClickFn {
     (index: number): void;
-}
+  }
 
-const handleClick: HandleClickFn = (index) => {
+  const handleClick: HandleClickFn = (index) => {
     // Convert 0–5 scale back to 0–100 for DB
     const newValue = Math.round(((index + 1) / total) * 100);
     onChange(newValue);
-};
+  };
 
-  return <div className="flex gap-3 cursor-pointer">
+  return (
+    <div className="flex gap-3 cursor-pointer">
       {[...Array(total)].map((_, index) => {
         const isActive = index < displayValue;
 
@@ -42,6 +45,7 @@ const handleClick: HandleClickFn = (index) => {
         );
       })}
     </div>
+  );
 };
 
 export default RatingInput;

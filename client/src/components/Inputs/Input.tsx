@@ -7,6 +7,7 @@ interface InputProps {
   label: string;
   placeholder: string;
   type: string;
+  disabled?: boolean;
 }
 
 const Input = ({ value, onChange, label, placeholder, type }: InputProps) => {

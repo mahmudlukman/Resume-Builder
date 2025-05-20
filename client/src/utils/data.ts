@@ -42,8 +42,12 @@ export const themeColorPalette = {
 };
 
 export const DUMMY_RESUME_DATA = {
+  _id: "resume_123", 
+  title: "John Doe's Resume",
+  createdAt: "2025-05-19T11:59:00.000Z", 
+  updatedAt: "2025-05-19T11:59:00.000Z",
   profileInfo: {
-    profileImg: null,
+    profileImg: undefined, 
     previewUrl: "",
     fullName: "John Doe",
     designation: "Senior Software Engineer",

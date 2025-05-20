@@ -121,14 +121,13 @@ export const createResume = catchAsyncError(
   }
 );
 
-// @desc    Update resume profile image
+// @desc    Update resume profile image and thumbnail
 // @route   PUT /api/v1/update-resume-image/:id
 // @access  Private
 export const updateResumeProfileImage = catchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const { profileImage } = req.body;
 
       // Find resume and verify ownership
       const resume = await Resume.findById(id);
@@ -143,51 +142,83 @@ export const updateResumeProfileImage = catchAsyncError(
         );
       }
 
-      // Handle image update
+      // Get profileImage and thumbnail from req.body (base64 strings, optional)
+      const { profileImage, thumbnail } = req.body || {};
+
+      // Initialize response object
+      const response: { thumbnailLink?: string; profilePreviewUrl?: string } = {};
+
+      // Handle profile image upload (optional)
       if (profileImage) {
-        // If there's an existing image, delete it from cloudinary
+        // Delete existing profile image from Cloudinary if it exists
         if (resume.profileInfo?.profilePreviewUrl) {
           const publicId = resume.profileInfo.profilePreviewUrl
             .split("/")
             .pop()
             ?.split(".")[0];
-
           if (publicId) {
-            await cloudinary.v2.uploader.destroy(
-              `resume_profile_images/${publicId}`
-            );
+            try {
+              await cloudinary.v2.uploader.destroy(`resume_profile_images/${publicId}`);
+            } catch (error: any) {
+              console.error("Error deleting profile image from Cloudinary:", error);
+            }
           }
         }
 
-        // Upload new image
-        const result = await cloudinary.v2.uploader.upload(profileImage, {
+        // Upload new profile image to Cloudinary
+        const profileImageResult = await cloudinary.v2.uploader.upload(profileImage, {
           folder: "resume_profile_images",
           width: 300,
           crop: "scale",
         });
 
-        // Update resume with new image URL
+        // Update profile image URL
         if (!resume.profileInfo) {
           resume.profileInfo = {};
         }
-        resume.profileInfo.profilePreviewUrl = result.secure_url;
-
-        await resume.save();
-
-        return res.status(200).json({
-          success: true,
-          profileImageUrl: result.secure_url,
-          message: "Profile image updated successfully",
-        });
-      } else {
-        return next(new ErrorHandler("No image provided", 400));
+        resume.profileInfo.profilePreviewUrl = profileImageResult.secure_url;
+        response.profilePreviewUrl = profileImageResult.secure_url;
       }
+
+      // Handle thumbnail upload (optional)
+      if (thumbnail) {
+        // Delete existing thumbnail from Cloudinary if it exists
+        if (resume.thumbnailLink) {
+          const publicId = resume.thumbnailLink.split("/").pop()?.split(".")[0];
+          if (publicId) {
+            try {
+              await cloudinary.v2.uploader.destroy(`resume_thumbnails/${publicId}`);
+            } catch (error: any) {
+              console.error("Error deleting thumbnail from Cloudinary:", error);
+            }
+          }
+        }
+
+        // Upload new thumbnail to Cloudinary
+        const thumbnailResult = await cloudinary.v2.uploader.upload(thumbnail, {
+          folder: "resume_thumbnails",
+          width: 800,
+          crop: "scale",
+        });
+
+        // Update thumbnail URL
+        resume.thumbnailLink = thumbnailResult.secure_url;
+        response.thumbnailLink = thumbnailResult.secure_url;
+      }
+
+      // Save updated resume (even if no images were provided)
+      await resume.save();
+
+      return res.status(200).json({
+        success: true,
+        ...response,
+        message: "Resume images updated successfully",
+      });
     } catch (error: any) {
       return next(new ErrorHandler(error.message, 400));
     }
   }
 );
-
 // @desc    Get all resumes for logged-in user
 // @route   GET /api/v1/resumes
 // @access  Private
@@ -238,8 +269,11 @@ export const getResumeById = catchAsyncError(
 export const updateResume = catchAsyncError(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const { id } = req.params;
+
+      // Find resume and verify ownership
       const resume = await Resume.findOne({
-        _id: req.params.id,
+        _id: id,
         userId: req.user._id,
       });
 
@@ -249,8 +283,22 @@ export const updateResume = catchAsyncError(
           .json({ message: "Resume not found or unauthorized" });
       }
 
-      // Merge updates from req.body into existing resume
-      Object.assign(resume, req.body);
+      // Update resume with new data
+      const updatedData = req.body;
+
+      // Explicitly update each field to ensure nested objects and arrays are handled correctly
+      resume.title = updatedData.title || resume.title;
+      resume.profileInfo = updatedData.profileInfo || resume.profileInfo;
+      resume.contactInfo = updatedData.contactInfo || resume.contactInfo;
+      resume.workExperience = updatedData.workExperience || resume.workExperience;
+      resume.education = updatedData.education || resume.education;
+      resume.skills = updatedData.skills || resume.skills;
+      resume.projects = updatedData.projects || resume.projects;
+      resume.certifications = updatedData.certifications || resume.certifications;
+      resume.languages = updatedData.languages || resume.languages;
+      resume.interests = updatedData.interests || resume.interests;
+      resume.template = updatedData.template || resume.template;
+      resume.thumbnailLink = updatedData.thumbnailLink || resume.thumbnailLink;
 
       // Save updated resume
       const savedResume = await resume.save();
