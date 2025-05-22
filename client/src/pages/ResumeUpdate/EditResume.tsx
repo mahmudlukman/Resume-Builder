@@ -392,7 +392,7 @@ const EditResume = () => {
             languages={resumeData.languages}
             interests={resumeData.interests}
             updateArrayItem={(section, index, key, value) =>
-              updateArrayItem(section, index, key, value)
+              updateArrayItem(section as keyof typeof resumeData, index, key, value)
             }
             addArrayItem={(section, newItem) => addArrayItem(section, newItem)}
             removeArrayItem={(section, index) =>
@@ -407,7 +407,11 @@ const EditResume = () => {
   };
 
   // Update simple nested object (like profileInfo, contactInfo, etc.)
-  const updateSection = (section: string, key: string, value: string) => {
+  const updateSection = (
+    section: keyof Pick<typeof resumeData, 'profileInfo' | 'contactInfo' | 'template'>,
+    key: string,
+    value: string
+  ) => {
     setResumeData((prev) => ({
       ...prev,
       [section]: {
@@ -425,6 +429,7 @@ const EditResume = () => {
     value: string | number
   ) => {
     setResumeData((prev) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sectionArray = prev[section] as any[];
       const updatedArray = [...sectionArray];
 
@@ -496,6 +501,7 @@ const EditResume = () => {
     // Upload images and get persistent URLs
     let thumbnailLink: string | undefined;
     let profilePreviewUrl: string | undefined;
+    
     if (data.profileImage || data.thumbnail) {
       const uploadResponse = await updateResumeImage({
         id: resumeId,
@@ -503,21 +509,24 @@ const EditResume = () => {
       }).unwrap();
       console.log("uploadResumeImage response:", uploadResponse);
       ({ thumbnailLink, profilePreviewUrl } = uploadResponse);
-
-      // Update resumeData with the new profilePreviewUrl
-      setResumeData((prev) => ({
-        ...prev,
-        thumbnailLink: thumbnailLink || prev.thumbnailLink,
-        profileInfo: {
-          ...prev.profileInfo,
-          profilePreviewUrl: profilePreviewUrl || prev.profileInfo.profilePreviewUrl,
-          profileImg: undefined, // Clear client-side File after upload
-        },
-      }));
     }
 
-    // Update resume details
-    await updateResumeDetails(thumbnailLink, profilePreviewUrl);
+    // Prepare the updated resume data with the new URLs from backend
+    const updatedResumeData = {
+      ...resumeData,
+      thumbnailLink: thumbnailLink || resumeData.thumbnailLink,
+      profileInfo: {
+        ...resumeData.profileInfo,
+        profilePreviewUrl: profilePreviewUrl || resumeData.profileInfo.profilePreviewUrl,
+        profileImg: undefined, // Clear client-side File after upload
+      },
+    };
+
+    // Update resume details with the corrected URLs
+    await updateResumeDetails(updatedResumeData);
+
+    // Update local state with the persistent URLs from backend
+    setResumeData(updatedResumeData);
 
     toast.success("Resume Updated Successfully!");
     navigate("/dashboard");
@@ -527,32 +536,19 @@ const EditResume = () => {
   }
 };
 
-  const updateResumeDetails = async (
-    thumbnailLink: string | undefined,
-    profilePreviewUrl: string | undefined
-  ): Promise<void> => {
-    try {
-      // Update the resume using RTK Query
-      await updateResume({
-        id: resumeId,
-        data: {
-          ...resumeData,
-          thumbnailLink: thumbnailLink || resumeData.thumbnailLink || "",
-          profileInfo: {
-            ...resumeData.profileInfo,
-            profilePreviewUrl:
-              profilePreviewUrl ||
-              resumeData.profileInfo.profilePreviewUrl ||
-              "",
-            profileImg: undefined, // Do not send File object to backend
-          },
-        },
-      }).unwrap();
-    } catch (err) {
-      console.error("Error updating resume details:", err);
-      toast.error("Failed to update resume details");
-    }
-  };
+// Updated updateResumeDetails function to accept the full resume data
+const updateResumeDetails = async (dataToUpdate: typeof resumeData): Promise<void> => {
+  try {
+    // Update the resume using RTK Query
+    await updateResume({
+      id: resumeId,
+      data: dataToUpdate,
+    }).unwrap();
+  } catch (err) {
+    console.error("Error updating resume details:", err);
+    toast.error("Failed to update resume details");
+  }
+};
 
   // Delete Resume
   const handleDeleteResume = async () => {
